@@ -35,6 +35,11 @@
 ;;; like the practice of writing something to completion for emacs for
 ;;; once!
 
+;;; TODO:
+;;; * support for gtags as well as etags
+;;; * manipulation of the tags list (deletion, etc)
+;;; * autodetection of etags/gtags etc
+
 ;;; Code:
 
 ;;; etags.el.  Locations are in global variable `tags-location-ring',
@@ -72,20 +77,19 @@
     (set-buffer (marker-buffer marker))
     (line-number-at-pos (marker-position marker))))
 
-(defun tv-insert-items (items)
+(defun tv-insert-items (items &optional count)
   "Insert the formatted list of tags with context"
+  (unless count (setq count 0))
   (if items
       (progn
-        (tv-insert-single-item (car items))
+        (tv-insert-single-item (car items) count)
         (if (cdr items)
             (progn
               (if tv-separator-string
-                  (progn
-                    (insert tv-separator-string)
-                    (insert "\n")))
-              (tv-insert-items (cdr items)))))))
+                  (insert tv-separator-string "\n"))
+              (tv-insert-items (cdr items) (1+ count)))))))
 
-(defun tv-insert-single-item (marker)
+(defun tv-insert-single-item (marker posn)
   "Insert a single formatted item, including overlays etc.
 Argument is a marker that will be displayed, along with
 `tv-context-lines' of context, if non-zero."
@@ -94,10 +98,11 @@ Argument is a marker that will be displayed, along with
                                 (buffer-name (marker-buffer marker))
                                 (tv-what-line marker))
                         'face 'tv-header-face))
-    (insert (tv-get-lines-with-context marker tv-context-lines))
-    (insert "\n")
-    (let* ((o (make-overlay beg (point))))
-      (overlay-put o 'mouse-face 'highlight))))
+    (insert (tv-get-lines-with-context marker tv-context-lines) "\n")
+    (let ((o (make-overlay beg (point))))
+      (overlay-put o 'mouse-face 'highlight)
+      (overlay-put o 'tv-ring-posn posn)
+      (overlay-put o 'tv-marker marker))))
 
 (defun tv-get-lines-with-context (marker &optional num-context)
   "Grabs the line at the specified marker; if optional
@@ -123,7 +128,16 @@ Argument is a marker that will be displayed, along with
 
 ;;; to implement; different methods of operating on the current selection:
 (defun tv-display-tag-other-window ())
-(defun tv-jump-to-tag-and-quit ())
+(defun tv-jump-to-tag-and-quit (location)
+  (interactive "d")
+  (let* ((o (or (car-safe (overlays-at location))
+                (car (overlays-at (next-overlay-change location)))))
+         (marker (overlay-get o 'tv-marker))
+         (buf    (marker-buffer marker))
+         (posn   (marker-position marker)))
+    (switch-to-buffer buf)
+    (goto-char posn)
+    (delete-other-windows)))
 (defun tv-clear-tag-at-point ())
 
 ;;; Navigation:
@@ -179,6 +193,9 @@ Argument is a marker that will be displayed, along with
     (define-key km "p"    'tv-previous-tag)
     (define-key km "\C-p" 'tv-previous-tag)
     (define-key km "k"    'tv-previous-tag)
+
+    ;; operation:
+    (define-key km "\C-m"  'tv-jump-to-tag-and-quit)
 
     ;; cleanup:
     (define-key km "q"    'delete-window)))
