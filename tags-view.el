@@ -66,7 +66,45 @@
   '((t (:foreground "gray" :weight 'light)))
   "Face used to display the header of each tag entry.")
 
+(defvar tv-determine-backend-function 'tv-determine-backend-directory-search
+  "Value should be a function of no arguments that returns a
+  symbol indicating which backend should be used, or 'none if not
+  applicable.")
+
+(defun tv-determine-backend ()
+  "Returns a symbol indicating which backend should be used (eg,
+  'etags, 'gtags, etc)."
+  (funcall tv-determine-backend-function))
+
+(defun tv-determine-backend-directory-search ()
+  "Determine which of gtags, etags, etc we should be assuming by
+recursively searching parent directories looking for TAGS, GTAGS,
+etc."
+  ;; Try just looking through parent directories for tell-tale files:
+  (let ((working-dir (or (and (buffer-file-name)
+                              (file-name-directory (buffer-file-name)))
+                         (pwd))))
+    (labels
+        ((rec (dir)
+              (cond
+               ((file-exists-p (concat dir "GTAGS"))
+                (throw 'exit 'gtags))
+               ((file-exists-p (concat dir "TAGS"))
+                (throw 'exit 'etags))
+               ;; if we've reached the end of the road, we're done:
+               ((string= dir (file-name-directory (directory-file-name dir)))
+                (throw 'exit 'none))
+               ;; else, keep recursing:
+               (t (rec (file-name-directory (directory-file-name dir)))))))
+      (catch 'exit (rec working-dir)))))
+
 (defun tv-view-history ()
+  "The main entry point; pops open a buffer with the list of
+locations on the tag stack that can then optionally be operated
+on (eg, jumping to that location, deleting it from the list,
+etc).  The following options will be available:
+
+\\{tags-history-mode-map}"
   (interactive)
   (let ((buf (get-buffer-create "*tags history*")))
     (pop-to-buffer buf)
