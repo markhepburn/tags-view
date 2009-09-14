@@ -40,16 +40,6 @@
 
 ;;; Code:
 
-;;; etags.el.  Locations are in global variable `tags-location-ring',
-;;; a ring data structure.
-
-;;; gtags.el.  Locations are in two global variables, one for the
-;;; buffer and one for the point: `gtags-buffer-stack' and
-;;; `gtags-point-stack'.  These are just lists, semantically treated
-;;; as stacks.  This will require some adjustment; easiest is probably
-;;; to create a marker for each location and return that as a list,
-;;; using save-buffer -> save-excursion -> goto-char -> point-marker
-;;; to create each marker.
 
 (require 'cl)
 
