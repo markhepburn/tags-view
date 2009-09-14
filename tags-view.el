@@ -71,6 +71,14 @@
   symbol indicating which backend should be used, or 'none if not
   applicable.")
 
+;;; Use a datastructure containing point and buffer instead of
+;;; markers, for backends such as gtags that don't use markers:
+(defun tv--make-pb (point buffer) (cons point buffer))
+(defun tv--pb-from-marker (marker)
+  (tv--make-pb (marker-position marker) (marker-buffer marker)))
+(defun tv--pb-point  (pb) (car pb))
+(defun tv--pb-buffer (pb) (cdr pb))
+
 (defun tv-determine-backend ()
   "Returns a symbol indicating which backend should be used (eg,
   'etags, 'gtags, etc)."
@@ -98,17 +106,17 @@ etc."
                (t (rec (file-name-directory (directory-file-name dir)))))))
       (catch 'exit (rec working-dir)))))
 
-(defun tv-get-tags-marker-list ()
+(defun tv-get-tags-list ()
   (let* ((backend (tv-determine-backend))
-         (backend-fn (intern (concat "tv-get-tags-marker-list-for-"
+         (backend-fn (intern (concat "tv-get-tags-list-for-"
                                      (symbol-name backend)))))
     (if (or (eq backend 'none) (not (fboundp backend-fn)))
         (error "Can't find a usable backend")
       (funcall backend-fn))))
-(defun tv-get-tags-marker-list-for-etags ()
-  (copy-list (ring-elements tags-location-ring)))
-(defun tv-get-tags-marker-list-for-gtags ()
-  (let ((points-and-buffers (map 'list 'cons gtags-point-stack gtags-buffer-stack))
+(defun tv-get-tags-list-for-etags ()
+  (mapcar 'tv--pb-from-marker (ring-elements tags-location-ring)))
+(defun tv-get-tags-list-for-gtags ()
+  (let ((points-and-buffers (map 'list 'tv--make-pb gtags-point-stack gtags-buffer-stack))
         (gtags-markers nil))
     (dolist (pb points-and-buffers gtags-markers)
       (with-current-buffer (cdr pb)
@@ -130,16 +138,15 @@ etc).  The following options will be available:
     (let ((inhibit-read-only t))
       (erase-buffer))
     (tags-history-mode)
-    (let ((tag-items (tv-get-tags-marker-list)))
+    (let ((tag-items (tv-get-tags-list)))
       (tv-insert-items tag-items))
     (setq buffer-read-only t)
     (goto-char 0)))
 
-(defun tv-what-line (marker)
-  "Return the line number of a marker"
-  (save-current-buffer
-    (set-buffer (marker-buffer marker))
-    (line-number-at-pos (marker-position marker))))
+(defun tv-what-line (pb)
+  "Return the line number of a point-buffer structure."
+  (with-current-buffer (tv--pb-buffer pb)
+    (line-number-at-pos (tv--pb-point pb))))
 
 (defun tv-insert-items (items &optional count)
   "Insert the formatted list of tags with context"
@@ -153,23 +160,24 @@ etc).  The following options will be available:
                   (insert tv-separator-string "\n"))
               (tv-insert-items (cdr items) (1+ count)))))))
 
-(defun tv-insert-single-item (marker posn)
+(defun tv-insert-single-item (pb posn)
   "Insert a single formatted item, including overlays etc.
 Argument is a marker that will be displayed, along with
 `tv-context-lines' of context, if non-zero."
   (let ((beg (point)))
     (insert (propertize (format "Buffer %s, line %d:\n"
-                                (buffer-name (marker-buffer marker))
-                                (tv-what-line marker))
+                                (buffer-name (tv--pb-buffer pb))
+                                (tv-what-line pb))
                         'face 'tv-header-face))
-    (insert (tv-get-lines-with-context marker tv-context-lines) "\n")
+    (insert (tv-get-lines-with-context pb tv-context-lines) "\n")
     (let ((o (make-overlay beg (point))))
       (overlay-put o 'mouse-face 'highlight)
       (overlay-put o 'tv-ring-posn posn)
-      (overlay-put o 'tv-marker marker))))
+      (overlay-put o 'tv-buffer (tv--pb-buffer pb))
+      (overlay-put o 'tv-point (tv--pb-point pb)))))
 
-(defun tv-get-lines-with-context (marker &optional num-context)
-  "Grabs the line at the specified marker; if optional
+(defun tv-get-lines-with-context (pb &optional num-context)
+  "Grabs the line at the specified point-and-buffer; if optional
   num-context is specified, it will also grab that number of
   preceding and following lines, assuming sufficient lines exist.
   For example, if 2 context lines are specified, a total of 5
@@ -178,17 +186,17 @@ Argument is a marker that will be displayed, along with
   exist in either direction, as many as possible will be used."
   (unless num-context (setq num-context 0))
   (if (< num-context 0) (setq (num-context (- num-context))))
-  (save-current-buffer
-    (set-buffer (marker-buffer marker))
-    (let (start end)
-      (goto-char (marker-position marker))
-      (forward-line (- num-context))
-      (setq start (point))
-      (goto-char (marker-position marker))
-      (forward-line num-context)
-      (end-of-line)
-      (setq end (point))
-      (buffer-substring start end))))
+  (with-current-buffer (tv--pb-buffer pb)
+    (save-excursion
+      (let (start end)
+        (goto-char (tv--pb-point pb))
+        (forward-line (- num-context))
+        (setq start (point))
+        (goto-char (tv--pb-point pb))
+        (forward-line num-context)
+        (end-of-line)
+        (setq end (point))
+        (buffer-substring start end)))))
 
 ;;; to implement; different methods of operating on the current selection:
 (defun tv-display-tag-other-window ())
@@ -196,9 +204,8 @@ Argument is a marker that will be displayed, along with
   (interactive "d")
   (let* ((o (or (car-safe (overlays-at location))
                 (car (overlays-at (next-overlay-change location)))))
-         (marker (overlay-get o 'tv-marker))
-         (buf    (marker-buffer marker))
-         (posn   (marker-position marker)))
+         (buf    (overlay-get o 'tv-buffer))
+         (posn   (overlay-get o 'tv-point)))
     (switch-to-buffer buf)
     (goto-char posn)
     (delete-other-windows)))
