@@ -130,9 +130,9 @@ etc."
   (let ((points-and-buffers (map 'list 'tv--make-pb gtags-point-stack gtags-buffer-stack))
         (gtags-markers nil))
     (dolist (pb points-and-buffers gtags-markers)
-      (with-current-buffer (cdr pb)
+      (with-current-buffer (tv--pb-buffer pb)
         (save-excursion
-          (goto-char (car pb))
+          (goto-char (tv--pb-point pb))
           (setq gtags-markers (cons (point-marker) gtags-markers)))))))
 
 (defun tv-view-history ()
