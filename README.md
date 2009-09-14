@@ -18,11 +18,11 @@ locations, etc.
 I wrote this for my own use, and my own amusement -- typically I'll
 think about writing something for emacs, then have a quick hunt and
 find something that already does the job.  This time I followed
-through to completion, but if you're after an alternative when I did
-go looking I found
-[http://www.emacswiki.org/emacs/EtagsStack]()
-I'd like to think this offers a little bit different; it supports
-gtags as well out of the box and in theory at least can be extended to
+through to completion (I was stuck in an airport), but if you're after
+an alternative then when I did go looking I found:
+[http://www.emacswiki.org/emacs/EtagsStack]().  I'd like to think that
+this offers something a little bit different; it supports gtags as
+well as etags out of the box and in theory at least can be extended to
 others, and it offers a few more operations on the chronological
 trace.  Of course, if you need any of that is up to you :)
 
