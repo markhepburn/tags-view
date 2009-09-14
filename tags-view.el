@@ -108,7 +108,7 @@ etc."
 (defun tv-get-tags-marker-list-for-etags ()
   (copy-list (ring-elements tags-location-ring)))
 (defun tv-get-tags-marker-list-for-gtags ()
-  (let ((points-and-buffers (mapcar 'cons gtags-point-stack gtags-buffer-stack))
+  (let ((points-and-buffers (map 'list 'cons gtags-point-stack gtags-buffer-stack))
         (gtags-markers nil))
     (dolist (pb points-and-buffers gtags-markers)
       (with-current-buffer (cdr pb)
