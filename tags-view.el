@@ -36,9 +36,7 @@
 ;;; once!
 
 ;;; TODO:
-;;; * support for gtags as well as etags
 ;;; * manipulation of the tags list (deletion, etc)
-;;; * autodetection of etags/gtags etc
 
 ;;; Code:
 
@@ -70,6 +68,16 @@
   "Value should be a function of no arguments that returns a
   symbol indicating which backend should be used, or 'none if not
   applicable.")
+
+(defvar tv-backend-list
+  '((etags
+     (get-tags-list . tv-get-tags-list-for-etags))
+    (gtags
+     (get-tags-list . tv-get-tags-list-for-gtags)))
+  "Assoc list keyed by the symbol returned by
+  `tv-determine-backend', whose values are also assoc lists
+  mapping the functionality keys to functions implementing that
+  functionality for that backend.")
 
 ;;; Use a datastructure containing point and buffer instead of
 ;;; markers, for backends such as gtags that don't use markers:
@@ -106,13 +114,16 @@ etc."
                (t (rec (file-name-directory (directory-file-name dir)))))))
       (catch 'exit (rec working-dir)))))
 
+(defun tv--call-fn-for-backend (fn-sym backend &rest args)
+  (condition-case nil
+      (let* ((backend-list (cdr (assoc backend tv-backend-list)))
+             (impl         (cdr (assoc fn-sym backend-list))))
+        (apply impl args))
+      (error
+       (error "Couldn't find implementation of %s for backend %s" fn-sym backend))))
+
 (defun tv-get-tags-list ()
-  (let* ((backend (tv-determine-backend))
-         (backend-fn (intern (concat "tv-get-tags-list-for-"
-                                     (symbol-name backend)))))
-    (if (or (eq backend 'none) (not (fboundp backend-fn)))
-        (error "Can't find a usable backend")
-      (funcall backend-fn))))
+  (tv--call-fn-for-backend 'get-tags-list (tv-determine-backend)))
 (defun tv-get-tags-list-for-etags ()
   (mapcar 'tv--pb-from-marker (ring-elements tags-location-ring)))
 (defun tv-get-tags-list-for-gtags ()
