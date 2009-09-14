@@ -98,6 +98,24 @@ etc."
                (t (rec (file-name-directory (directory-file-name dir)))))))
       (catch 'exit (rec working-dir)))))
 
+(defun tv-get-tags-marker-list ()
+  (let* ((backend (tv-determine-backend))
+         (backend-fn (intern (concat "tv-get-tags-marker-list-for-"
+                                     (symbol-name backend)))))
+    (if (or (eq backend 'none) (not (fboundp backend-fn)))
+        (error "Can't find a usable backend")
+      (funcall backend-fn))))
+(defun tv-get-tags-marker-list-for-etags ()
+  (copy-list (ring-elements tags-location-ring)))
+(defun tv-get-tags-marker-list-for-gtags ()
+  (let ((points-and-buffers (mapcar 'cons gtags-point-stack gtags-buffer-stack))
+        (gtags-markers nil))
+    (dolist (pb points-and-buffers gtags-markers)
+      (with-current-buffer (cdr pb)
+        (save-excursion
+          (goto-char (car pb))
+          (setq gtags-markers (cons (point-marker) gtags-markers)))))))
+
 (defun tv-view-history ()
   "The main entry point; pops open a buffer with the list of
 locations on the tag stack that can then optionally be operated
@@ -112,7 +130,7 @@ etc).  The following options will be available:
     (let ((inhibit-read-only t))
       (erase-buffer))
     (tags-history-mode)
-    (let ((tag-items (copy-list (ring-elements tags-location-ring))))
+    (let ((tag-items (tv-get-tags-marker-list)))
       (tv-insert-items tag-items))
     (setq buffer-read-only t)
     (goto-char 0)))
