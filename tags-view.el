@@ -29,14 +29,21 @@
 ;;; repeatedly to pop back up the stack, but this would lose your
 ;;; current location.  This module allows you to view the path taken,
 ;;; and if desired to jump immediately back to any intermediate
-;;; location.
+;;; location, delete any extranous locations, etc.
 
 ;;; I don't think this exists, but I haven't looked too hard -- I'd
 ;;; like the practice of writing something to completion for emacs for
-;;; once!
+;;; once, before realising someone else has already provided it!
+;;; Update: ok, I went looking, and of course it exists:
+;;; http://www.emacswiki.org/emacs/EtagsStack
+;;; I'd like to think this offers a little bit different; it supports
+;;; gtags as well out of the box and in theory at least can be
+;;; extended to others, and it offers a few more operations on the
+;;; chronological trace.  Of course, if you need any of that is up to
+;;; you :)
 
-;;; TODO:
-;;; * manipulation of the tags list (deletion, etc)
+;;; Bugs: Most probably.  The gtags backend in particular really
+;;; hasn't copped much testing yet.
 
 ;;; Code:
 
@@ -61,9 +68,11 @@
 
 (defvar tv-backend-list
   '((etags
-     (get-tags-list . tv-get-tags-list-for-etags))
+     (get-tags-list . tv-get-tags-list-for-etags)
+     (clear-tag . tv-delete-tag-for-etags))
     (gtags
-     (get-tags-list . tv-get-tags-list-for-gtags)))
+     (get-tags-list . tv-get-tags-list-for-gtags)
+     (clear-tag . tv-delete-tag-for-gtags)))
   "Assoc list keyed by the symbol returned by
   `tv-determine-backend', whose values are also assoc lists
   mapping the functionality keys to functions implementing that
@@ -173,7 +182,7 @@ Argument is a marker that will be displayed, along with
     (insert (tv-get-lines-with-context pb tv-context-lines) "\n")
     (let ((o (make-overlay beg (point))))
       (overlay-put o 'mouse-face 'highlight)
-      (overlay-put o 'tv-ring-posn posn)
+      (overlay-put o 'tv-stack-posn posn)
       (overlay-put o 'tv-buffer (tv--pb-buffer pb))
       (overlay-put o 'tv-point (tv--pb-point pb)))))
 
@@ -200,19 +209,54 @@ Argument is a marker that will be displayed, along with
         (buffer-substring start end)))))
 
 ;;; to implement; different methods of operating on the current selection:
-(defun tv-display-tag-other-window ())
+
+(defmacro with-tag-info (locn args &rest body)
+  "Macro to facilitate writing tag-stack operations.  First
+  argument is the location (point) in the buffer, the second is
+  an \"argument list\" of buffer, position, and stack position,
+  all taken from the tag under point, and the remainder is the
+  body.  The arg-list args will be bound within the body to the
+  values corresponding to the tag under point."
+  (declare (indent 2))
+  (let ((o (gensym "tv-overlay-")))
+    `(let* ((,o (or (car-safe (overlays-at ,locn))
+                    (car (overlays-at (next-overlay-change ,locn)))))
+            (,(car   args) (overlay-get ,o 'tv-buffer))
+            (,(cadr  args) (overlay-get ,o 'tv-point))
+            (,(caddr args) (overlay-get ,o 'tv-stack-posn)))
+       ,@body)))
+
+(defun tv-display-tag-other-window (location)
+  (interactive "d")
+  (with-tag-info location (buf posn stack)
+    (let ((tags-win (selected-window)))
+      (with-current-buffer (pop-to-buffer buf)
+        (goto-char posn)
+        (recenter))
+      (select-window tags-win))))
 (defun tv-jump-to-tag-and-quit (location)
   (interactive "d")
-  (let* ((o (or (car-safe (overlays-at location))
-                (car (overlays-at (next-overlay-change location)))))
-         (buf    (overlay-get o 'tv-buffer))
-         (posn   (overlay-get o 'tv-point)))
+  (with-tag-info location (buf posn stack)
     (switch-to-buffer buf)
     (goto-char posn)
     (delete-other-windows)))
-(defun tv-clear-tag-at-point ())
+(defun tv-delete-tag-at-point (location)
+  (interactive "d")
+  (with-tag-info location (buf posn stack-pos)
+    (tv--call-fn-for-backend 'clear-tag (tv-determine-backend) stack-pos)
+    ;; redraw:
+    (tv-view-history)))
+;;; implementations:
+(defun tv-delete-tag-for-etags (stack-position)
+  (ring-remove tags-location-ring stack-position))
+(defun tv-delete-tag-for-gtags (stack-position)
+  (labels
+      ((delete-nth (n lst)
+                   (setcdr (nthcdr (1- n) lst) (nthcdr (1+ n) lst))))
+    (delete-nth stack-position gtags-point-stack)
+    (delete-nth stack-position gtags-buffer-stack)))
 
-;;; Navigation:
+;;; Navigation (mostly borrowed from browse-kill-ring):
 (defun tv-next-tag (&optional arg)
   "Move point forward to the next tag.  Optional numeric argument
   moves forward that many tags."
@@ -267,7 +311,9 @@ Argument is a marker that will be displayed, along with
     (define-key km "k"    'tv-previous-tag)
 
     ;; operation:
-    (define-key km "\C-m"  'tv-jump-to-tag-and-quit)
+    (define-key km "\C-m" 'tv-jump-to-tag-and-quit)
+    (define-key km "o"    'tv-display-tag-other-window)
+    (define-key km "d"    'tv-delete-tag-at-point)
 
     ;; cleanup:
     (define-key km "q"    'delete-window)))
