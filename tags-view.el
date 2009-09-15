@@ -126,13 +126,7 @@ etc."
 (defun tv-get-tags-list-for-etags ()
   (mapcar 'tv--pb-from-marker (ring-elements tags-location-ring)))
 (defun tv-get-tags-list-for-gtags ()
-  (let ((points-and-buffers (map 'list 'tv--make-pb gtags-point-stack gtags-buffer-stack))
-        (gtags-markers nil))
-    (dolist (pb points-and-buffers gtags-markers)
-      (with-current-buffer (tv--pb-buffer pb)
-        (save-excursion
-          (goto-char (tv--pb-point pb))
-          (setq gtags-markers (cons (point-marker) gtags-markers)))))))
+  (map 'list 'tv--make-pb gtags-point-stack gtags-buffer-stack))
 
 (defun tv-view-history ()
   "The main entry point; pops open a buffer with the list of
