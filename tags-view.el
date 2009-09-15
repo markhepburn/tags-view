@@ -136,14 +136,14 @@ etc).  The following options will be available:
 
 \\{tags-history-mode-map}"
   (interactive)
-  (let ((buf (get-buffer-create "*tags history*")))
+  (let ((buf (get-buffer-create "*tags history*"))
+        (tag-items (tv-get-tags-list)))
     (pop-to-buffer buf)
     (setq buffer-read-only nil)
     (let ((inhibit-read-only t))
       (erase-buffer))
     (tags-history-mode)
-    (let ((tag-items (tv-get-tags-list)))
-      (tv-insert-items tag-items))
+    (tv-insert-items tag-items)
     (setq buffer-read-only t)
     (goto-char 0)))
 
