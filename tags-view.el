@@ -137,12 +137,14 @@ etc).  The following options will be available:
 \\{tags-history-mode-map}"
   (interactive)
   (let ((buf (get-buffer-create "*tags history*"))
-        (tag-items (tv-get-tags-list)))
+        (tag-items (tv-get-tags-list))
+        (backend (tv-determine-backend)))
     (pop-to-buffer buf)
     (setq buffer-read-only nil)
     (let ((inhibit-read-only t))
       (erase-buffer))
     (tags-history-mode)
+    (set (make-local-variable 'tv-tags-backend) backend)
     (tv-insert-items tag-items)
     (setq buffer-read-only t)
     (goto-char 0)))
@@ -237,9 +239,12 @@ Argument is a marker that will be displayed, along with
 (defun tv-delete-tag-at-point (location)
   (interactive "d")
   (with-tag-info location (buf posn stack-pos)
-    (tv--call-fn-for-backend 'clear-tag (tv-determine-backend) stack-pos)
-    ;; redraw:
-    (tv-view-history)))
+    (tv--call-fn-for-backend 'clear-tag tv-tags-backend stack-pos)
+    ;; redraw; hack here to make sure the same backend is used.  I
+    ;; don't like this, and will probably refactor to fix it soon.  It
+    ;; smells, to me:
+    (let ((tv-determine-backend-function (lambda () tv-tags-backend)))
+      (tv-view-history))))
 ;;; implementations:
 (defun tv-delete-tag-for-etags (stack-position)
   (ring-remove tags-location-ring stack-position))
