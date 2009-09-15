@@ -121,8 +121,8 @@ etc."
       (error
        (error "Couldn't find implementation of %s for backend %s" fn-sym backend))))
 
-(defun tv-get-tags-list ()
-  (tv--call-fn-for-backend 'get-tags-list (tv-determine-backend)))
+(defun tv-get-tags-list (backend)
+  (tv--call-fn-for-backend 'get-tags-list backend))
 (defun tv-get-tags-list-for-etags ()
   (mapcar 'tv--pb-from-marker (ring-elements tags-location-ring)))
 (defun tv-get-tags-list-for-gtags ()
@@ -136,9 +136,9 @@ etc).  The following options will be available:
 
 \\{tags-history-mode-map}"
   (interactive)
-  (let ((buf (get-buffer-create "*tags history*"))
-        (tag-items (tv-get-tags-list))
-        (backend (tv-determine-backend)))
+  (let* ((buf (get-buffer-create "*tags history*"))
+         (backend (tv-determine-backend))
+         (tag-items (tv-get-tags-list backend)))
     (pop-to-buffer buf)
     (setq buffer-read-only nil)
     (let ((inhibit-read-only t))
