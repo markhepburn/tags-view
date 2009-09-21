@@ -58,7 +58,7 @@
   each location displayed.")
 
 (defface tv-header-face
-  '((t (:foreground "gray" :weight 'light)))
+  '((t (:foreground "gray" :weight light)))
   "Face used to display the header of each tag entry.")
 
 (defvar tv-determine-backend-function 'tv-determine-backend-directory-search
