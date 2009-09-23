@@ -249,9 +249,11 @@ Argument is a marker that will be displayed, along with
 (defun tv-delete-tag-for-etags (stack-position)
   (ring-remove tags-location-ring stack-position))
 (defun tv-delete-tag-for-gtags (stack-position)
-  (labels
+  (macrolet
       ((delete-nth (n lst)
-                   (setcdr (nthcdr (1- n) lst) (nthcdr (1+ n) lst))))
+                   `(if (zerop ,n)
+                        (setq ,lst (cdr ,lst))
+                      (setcdr (nthcdr (1- ,n) ,lst) (nthcdr (1+ ,n) ,lst)))))
     (delete-nth stack-position gtags-point-stack)
     (delete-nth stack-position gtags-buffer-stack)))
 
