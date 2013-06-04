@@ -55,7 +55,7 @@
 
 (defvar tv-context-lines 0
   "The number of preceding and following lines to include around
-  each location displayed.")
+each location displayed.")
 
 (defface tv-header-face
   '((t (:foreground "gray" :weight light)))
@@ -63,8 +63,8 @@
 
 (defvar tv-determine-backend-function 'tv-determine-backend-directory-search
   "Value should be a function of no arguments that returns a
-  symbol indicating which backend should be used, or 'none if not
-  applicable.")
+symbol indicating which backend should be used, or 'none if not
+applicable.")
 
 (defvar tv-backend-list
   '((etags
@@ -74,9 +74,9 @@
      (get-tags-list . tv-get-tags-list-for-gtags)
      (clear-tag . tv-delete-tag-for-gtags)))
   "Assoc list keyed by the symbol returned by
-  `tv-determine-backend', whose values are also assoc lists
-  mapping the functionality keys to functions implementing that
-  functionality for that backend.")
+`tv-determine-backend', whose values are also assoc lists mapping
+the functionality keys to functions implementing that
+functionality for that backend.")
 
 ;;; Use a datastructure containing point and buffer instead of
 ;;; markers, for backends such as gtags that don't use markers:
@@ -87,8 +87,8 @@
 (defun tv--pb-buffer (pb) (cdr pb))
 
 (defun tv-determine-backend ()
-  "Returns a symbol indicating which backend should be used (eg,
-  'etags, 'gtags, etc)."
+  "Return a symbol indicating which backend should be used (eg,
+'etags, 'gtags, etc)."
   (funcall tv-determine-backend-function))
 
 (defun tv-determine-backend-directory-search ()
@@ -184,12 +184,12 @@ Argument is a marker that will be displayed, along with
 
 (defun tv-get-lines-with-context (pb &optional num-context)
   "Grabs the line at the specified point-and-buffer; if optional
-  num-context is specified, it will also grab that number of
-  preceding and following lines, assuming sufficient lines exist.
-  For example, if 2 context lines are specified, a total of 5
-  lines wil lbe returned: 2 preceding, the line the marker is
-  located on, and 2 following lines.  If not enough context lines
-  exist in either direction, as many as possible will be used."
+num-context is specified, it will also grab that number of
+preceding and following lines, assuming sufficient lines exist.
+For example, if 2 context lines are specified, a total of 5 lines
+wil lbe returned: 2 preceding, the line the marker is located on,
+and 2 following lines.  If not enough context lines exist in
+either direction, as many as possible will be used."
   (unless num-context (setq num-context 0))
   (if (< num-context 0) (setq (num-context (- num-context))))
   (with-current-buffer (tv--pb-buffer pb)
@@ -208,11 +208,11 @@ Argument is a marker that will be displayed, along with
 
 (defmacro with-tag-info (locn args &rest body)
   "Macro to facilitate writing tag-stack operations.  First
-  argument is the location (point) in the buffer, the second is
-  an \"argument list\" of buffer, position, and stack position,
-  all taken from the tag under point, and the remainder is the
-  body.  The arg-list args will be bound within the body to the
-  values corresponding to the tag under point."
+argument is the location (point) in the buffer, the second is an
+\"argument list\" of buffer, position, and stack position, all
+taken from the tag under point, and the remainder is the body.
+The arg-list args will be bound within the body to the values
+corresponding to the tag under point."
   (declare (indent 2))
   (let ((o (gensym "tv-overlay-")))
     `(let* ((,o (or (car-safe (overlays-at ,locn))
@@ -260,7 +260,7 @@ Argument is a marker that will be displayed, along with
 ;;; Navigation (mostly borrowed from browse-kill-ring):
 (defun tv-next-tag (&optional arg)
   "Move point forward to the next tag.  Optional numeric argument
-  moves forward that many tags."
+moves forward that many tags."
   (interactive "p")
   (beginning-of-line)
   (while (not (zerop arg))
@@ -288,7 +288,7 @@ Argument is a marker that will be displayed, along with
 
 (defun tv-previous-tag (&optional arg)
   "Move point backwards to the previous tag.  Optional numeric
-  argument moves backwards that many tags."
+argument moves backwards that many tags."
   (interactive "p")
   (tv-next-tag (- arg)))
 
