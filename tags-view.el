@@ -54,16 +54,16 @@
   "Text used to separate entries in the browser window.  May be nil.")
 
 (defvar tv-context-lines 0
-  "The number of preceding and following lines to include around
-each location displayed.")
+  "The number of lines to include around each location displayed.")
 
 (defface tv-header-face
   '((t (:foreground "gray" :weight light)))
   "Face used to display the header of each tag entry.")
 
 (defvar tv-determine-backend-function 'tv-determine-backend-directory-search
-  "Value should be a function of no arguments that returns a
-symbol indicating which backend should be used, or 'none if not
+  "Function to determine which backend to use.
+Value should be a function of no arguments that returns a symbol
+indicating which backend should be used, or 'none if not
 applicable.")
 
 (defvar tv-backend-list
@@ -73,10 +73,10 @@ applicable.")
     (gtags
      (get-tags-list . tv-get-tags-list-for-gtags)
      (clear-tag . tv-delete-tag-for-gtags)))
-  "Assoc list keyed by the symbol returned by
-`tv-determine-backend', whose values are also assoc lists mapping
-the functionality keys to functions implementing that
-functionality for that backend.")
+  "Assoc list specifying key implementations per backend.
+It is keyed by the symbol returned by `tv-determine-backend', and
+values are also assoc lists mapping the functionality keys to
+functions implementing that functionality for that backend.")
 
 ;;; Use a datastructure containing point and buffer instead of
 ;;; markers, for backends such as gtags that don't use markers:
@@ -87,14 +87,12 @@ functionality for that backend.")
 (defun tv--pb-buffer (pb) (cdr pb))
 
 (defun tv-determine-backend ()
-  "Return a symbol indicating which backend should be used (eg,
-'etags, 'gtags, etc)."
+  "Determine which backend should be used (eg,'etags, 'gtags, etc).
+This will be used as the key in to `tv-backend-list'"
   (funcall tv-determine-backend-function))
 
 (defun tv-determine-backend-directory-search ()
-  "Determine which of gtags, etags, etc we should be assuming by
-recursively searching parent directories looking for TAGS, GTAGS,
-etc."
+  "Deduce the backend by searching up directories looking for clues."
   ;; Try just looking through parent directories for tell-tale files:
   (let ((working-dir (or (and (buffer-file-name)
                               (file-name-directory (buffer-file-name)))
@@ -129,10 +127,10 @@ etc."
   (map 'list 'tv--make-pb gtags-point-stack gtags-buffer-stack))
 
 (defun tv-view-history ()
-  "The main entry point; pops open a buffer with the list of
-locations on the tag stack that can then optionally be operated
-on (eg, jumping to that location, deleting it from the list,
-etc).  The following options will be available:
+  "Open a buffer listing locations on the tag stack.
+These can then optionally be operated on (eg, jumping to that
+location, deleting it from the list, etc).  The following options
+will be available:
 
 \\{tags-history-mode-map}"
   (interactive)
@@ -150,12 +148,12 @@ etc).  The following options will be available:
     (goto-char 0)))
 
 (defun tv-what-line (pb)
-  "Return the line number of a point-buffer structure."
+  "Return the line number of a point-buffer structure (PB)."
   (with-current-buffer (tv--pb-buffer pb)
     (line-number-at-pos (tv--pb-point pb))))
 
 (defun tv-insert-items (items &optional count)
-  "Insert the formatted list of tags with context"
+  "Insert the formatted list of tags (ITEMS) with COUNT context lines."
   (unless count (setq count 0))
   (if items
       (progn
@@ -167,9 +165,10 @@ etc).  The following options will be available:
               (tv-insert-items (cdr items) (1+ count)))))))
 
 (defun tv-insert-single-item (pb posn)
-  "Insert a single formatted item, including overlays etc.
-Argument is a marker that will be displayed, along with
-`tv-context-lines' of context, if non-zero."
+  "Insert a single formatted item listing, including context etc.
+Argument PB is a marker that will be displayed, along with
+`tv-context-lines' of context, if non-zero.  POSN refers to the
+position in the stack occupied by that item."
   (let ((beg (point)))
     (insert (propertize (format "Buffer %s, line %d:\n"
                                 (buffer-name (tv--pb-buffer pb))
@@ -183,13 +182,14 @@ Argument is a marker that will be displayed, along with
       (overlay-put o 'tv-point (tv--pb-point pb)))))
 
 (defun tv-get-lines-with-context (pb &optional num-context)
-  "Grabs the line at the specified point-and-buffer; if optional
-num-context is specified, it will also grab that number of
-preceding and following lines, assuming sufficient lines exist.
-For example, if 2 context lines are specified, a total of 5 lines
-wil lbe returned: 2 preceding, the line the marker is located on,
-and 2 following lines.  If not enough context lines exist in
-either direction, as many as possible will be used."
+  "Grab the line and context of the specified point-and-buffer.
+PB is a point-buffer structure.  If optional NUM-CONTEXT is
+specified, it will also grab that number of preceding and
+following lines, assuming sufficient lines exist.  For example,
+if 2 context lines are specified, a total of 5 lines wil lbe
+returned: 2 preceding, the line the marker is located on, and 2
+following lines.  If not enough context lines exist in either
+direction, as many as possible will be used."
   (unless num-context (setq num-context 0))
   (if (< num-context 0) (setq (num-context (- num-context))))
   (with-current-buffer (tv--pb-buffer pb)
@@ -207,12 +207,12 @@ either direction, as many as possible will be used."
 ;;; to implement; different methods of operating on the current selection:
 
 (defmacro with-tag-info (locn args &rest body)
-  "Macro to facilitate writing tag-stack operations.  First
-argument is the location (point) in the buffer, the second is an
-\"argument list\" of buffer, position, and stack position, all
-taken from the tag under point, and the remainder is the body.
-The arg-list args will be bound within the body to the values
-corresponding to the tag under point."
+  "Macro to facilitate writing tag-stack operations.
+First argument LOCN is the location (point) in the buffer, the
+second ARGS is an \"argument list\" of buffer, position, and
+stack position, all taken from the tag under point, and the
+remainder is the BODY.  The arg-list args will be bound within
+the BODY to the values corresponding to the tag under point."
   (declare (indent 2))
   (let ((o (gensym "tv-overlay-")))
     `(let* ((,o (or (car-safe (overlays-at ,locn))
@@ -259,8 +259,8 @@ corresponding to the tag under point."
 
 ;;; Navigation (mostly borrowed from browse-kill-ring):
 (defun tv-next-tag (&optional arg)
-  "Move point forward to the next tag.  Optional numeric argument
-moves forward that many tags."
+  "Move point forward to the next tag listing.
+Optional numeric ARG moves forward that many tags."
   (interactive "p")
   (beginning-of-line)
   (while (not (zerop arg))
@@ -287,8 +287,8 @@ moves forward that many tags."
               (goto-char (overlay-start (car (overlays-at (point))))))))))))
 
 (defun tv-previous-tag (&optional arg)
-  "Move point backwards to the previous tag.  Optional numeric
-argument moves backwards that many tags."
+  "Move point backwards to the previous tag listing.
+Optional numeric ARG moves backwards that many tags."
   (interactive "p")
   (tv-next-tag (- arg)))
 
