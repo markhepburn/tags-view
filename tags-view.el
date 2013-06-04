@@ -32,7 +32,7 @@
 ;;; location, delete any extranous locations, etc.
 
 ;;; I don't think this exists, but I haven't looked too hard -- I'd
-;;; like the practice of writing something to completion for emacs for
+;;; like the practice of writing something to completion for Emacs for
 ;;; once, before realising someone else has already provided it!
 ;;; Update: ok, I went looking, and of course it exists:
 ;;; http://www.emacswiki.org/emacs/EtagsStack
@@ -306,7 +306,7 @@ Argument is a marker that will be displayed, along with
     (define-key km "n"    'tv-next-tag)
     (define-key km "\C-n" 'tv-next-tag)
     (define-key km "j"    'tv-next-tag)
-    
+
     (define-key km "p"    'tv-previous-tag)
     (define-key km "\C-p" 'tv-previous-tag)
     (define-key km "k"    'tv-previous-tag)
@@ -320,3 +320,4 @@ Argument is a marker that will be displayed, along with
     (define-key km "q"    'delete-window)))
 
 (provide 'tags-view)
+;;; tags-view.el ends here
