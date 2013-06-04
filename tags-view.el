@@ -191,7 +191,7 @@ returned: 2 preceding, the line the marker is located on, and 2
 following lines.  If not enough context lines exist in either
 direction, as many as possible will be used."
   (unless num-context (setq num-context 0))
-  (if (< num-context 0) (setq (num-context (- num-context))))
+  (if (< num-context 0) (setq num-context (- num-context)))
   (with-current-buffer (tv--pb-buffer pb)
     (save-excursion
       (let (start end)
