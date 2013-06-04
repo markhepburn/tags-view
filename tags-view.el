@@ -48,7 +48,8 @@
 ;;; Code:
 
 
-(require 'cl)
+(with-no-warnings
+  (require 'cl))
 
 (defvar tv-separator-string "----"
   "Text used to separate entries in the browser window.  May be nil.")
